@@ -1,0 +1,127 @@
+name: Release
+
+# Builds Lead Finder on native GitHub runners (Windows, macOS, Linux) from the
+# public source and publishes a GitHub Release with SHA256 checksums.
+# Binaries are NOT packed, compressed with UPX, or obfuscated.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            asset: LeadFinder-windows-x64.exe
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            asset: LeadFinder-mac-apple-silicon.zip
+          - os: macos-15-intel
+            goos: darwin
+            goarch: amd64
+            asset: LeadFinder-mac-intel.zip
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            asset: LeadFinder-linux-x64.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Version from tag
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Test
+        shell: bash
+        run: go test ./...
+
+      - name: Add Windows version info
+        if: matrix.goos == 'windows'
+        shell: bash
+        run: |
+          IFS=. read -r MAJ MIN PAT <<< "${VERSION%%-*}"
+          go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.1 \
+            -64 -icon=assets/icon.ico \
+            -ver-major="$MAJ" -ver-minor="$MIN" -ver-patch="$PAT" \
+            -product-ver-major="$MAJ" -product-ver-minor="$MIN" -product-ver-patch="$PAT" \
+            -file-version="$VERSION" -product-version="$VERSION" \
+            -o resource_windows_amd64.syso versioninfo.json
+
+      - name: Build
+        shell: bash
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p dist
+          BIN=LeadFinder
+          [ "$GOOS" = windows ] && BIN=LeadFinder.exe
+          go build -trimpath -ldflags "-X main.version=${VERSION}" -o "dist/$BIN" .
+
+      - name: Package
+        shell: bash
+        run: |
+          cd dist
+          case "${{ matrix.goos }}" in
+            windows) mv LeadFinder.exe "${{ matrix.asset }}" ;;
+            darwin)  chmod +x LeadFinder && zip -X "${{ matrix.asset }}" LeadFinder && rm LeadFinder ;;
+            linux)   chmod +x LeadFinder && tar -czf "${{ matrix.asset }}" LeadFinder && rm LeadFinder ;;
+          esac
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Lead Finder $GITHUB_REF_NAME" \
+            --notes "Download the file for your computer below. See the README for first-time instructions (Windows SmartScreen / macOS Gatekeeper).
+
+          | Your computer | File |
+          |---|---|
+          | Windows | LeadFinder-windows-x64.exe |
+          | Mac (Apple Silicon: M1, M2, M3, M4…) | LeadFinder-mac-apple-silicon.zip |
+          | Mac (Intel) | LeadFinder-mac-intel.zip |
+          | Linux | LeadFinder-linux-x64.tar.gz |
+
+          All files are built by GitHub Actions from this public source code. SHA256 checksums are in SHA256SUMS.txt."
