@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead Finder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='14' cy='14' r='9' fill='none' stroke='%232563eb' stroke-width='4'/%3E%3Cpath d='M21 21l7 7' stroke='%232563eb' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f5f7fb;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --brand: #2563eb;
+    --brand-dark: #1d4ed8;
+    --ok: #059669;
+    --err: #dc2626;
+    --input: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a;
+      --card: #111c33;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --line: #23314f;
+      --brand: #3b82f6;
+      --brand-dark: #2563eb;
+      --ok: #34d399;
+      --err: #f87171;
+      --input: #0b1426;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px;
+    min-height: 100vh;
+  }
+  main { width: 100%; max-width: 520px; }
+  header { text-align: center; margin-bottom: 24px; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--muted); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+  label { display: block; font-weight: 600; margin: 0 0 6px; }
+  .hint { font-weight: 400; color: var(--muted); font-size: 14px; }
+  input {
+    width: 100%;
+    font-size: 17px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--input);
+    color: var(--text);
+    margin-bottom: 18px;
+  }
+  input:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: transparent; }
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 12px;
+    border: 0;
+  }
+  .primary {
+    width: 100%;
+    background: var(--brand);
+    color: #fff;
+    font-size: 19px;
+    font-weight: 700;
+    padding: 16px;
+  }
+  .primary:hover { background: var(--brand-dark); }
+  .primary:disabled { opacity: 0.55; cursor: default; }
+  .download {
+    display: none;
+    width: 100%;
+    margin-top: 14px;
+    text-align: center;
+    background: var(--ok);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 15px;
+    border-radius: 12px;
+    text-decoration: none;
+  }
+  .progress {
+    margin-top: 18px;
+    min-height: 24px;
+    font-size: 15px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .progress.error { color: var(--err); }
+  .progress.done { color: var(--ok); font-weight: 600; }
+  .spinner {
+    width: 16px; height: 16px; flex: none;
+    border: 2px solid var(--line);
+    border-top-color: var(--brand);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+  .running .spinner { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .row { display: flex; justify-content: space-between; margin-top: 10px; }
+  .link {
+    background: none;
+    color: var(--muted);
+    font-size: 14px;
+    padding: 4px 0;
+    text-decoration: underline;
+  }
+  .stop { display: none; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 22px; line-height: 1.6; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Lead Finder</h1>
+    <p>Find local businesses with no website on Google Maps.</p>
+  </header>
+
+  <form class="card" id="form" autocomplete="off">
+    <label for="business">What business?</label>
+    <input id="business" name="business" placeholder="e.g. barber" required maxlength="80">
+
+    <label for="city">Which city?</label>
+    <input id="city" name="city" placeholder="e.g. Leeds" required maxlength="80">
+
+    <label for="howMany">How many? <span class="hint">(places to check, max 100)</span></label>
+    <input id="howMany" name="howMany" type="number" min="1" max="100" value="50" required>
+
+    <button class="primary" id="find" type="submit">Find leads</button>
+
+    <div class="progress" id="progress" aria-live="polite">
+      <span class="spinner"></span><span id="message">Ready when you are.</span>
+    </div>
+
+    <a class="download" id="download" href="/download">Download sheet</a>
+
+    <div class="row">
+      <button type="button" class="link stop" id="stop">Stop search</button>
+      <span></span>
+      <button type="button" class="link" id="quit">Quit</button>
+    </div>
+  </form>
+
+  <footer>
+    Keeps only places with no website, 4.0+ rating, 10+ reviews, not closed.<br>
+    Free &amp; open source · Powered by
+    <a href="https://github.com/gosom/google-maps-scraper" target="_blank" rel="noopener">google-maps-scraper</a>
+  </footer>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const form = $("form"), find = $("find"), progress = $("progress"),
+        message = $("message"), download = $("download"), stop = $("stop");
+  let timer = null;
+
+  function render(s) {
+    const running = s.running;
+    find.disabled = running;
+    find.textContent = running ? "Searching…" : "Find leads";
+    stop.style.display = running ? "inline" : "none";
+    progress.className = "progress" + (running ? " running" : "") +
+      (s.phase === "error" ? " error" : "") + (s.phase === "done" ? " done" : "");
+
+    let text = s.message || "";
+    if (s.phase === "searching" && s.found > 0) {
+      text = `Checking places: ${s.checked} of ${s.found} done · ${s.leads} lead${s.leads === 1 ? "" : "s"} so far`;
+    }
+    message.textContent = text || "Ready when you are.";
+
+    const showDownload = !running && (s.phase === "done" || (s.phase === "error" && s.leads > 0));
+    download.style.display = showDownload ? "block" : "none";
+    download.textContent = `Download sheet (${s.leads} lead${s.leads === 1 ? "" : "s"})`;
+
+    if (!running && timer) { clearInterval(timer); timer = null; }
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch("/api/status");
+      render(await r.json());
+    } catch (e) {
+      message.textContent = "Lead Finder was closed. Open the app again to continue.";
+      clearInterval(timer); timer = null;
+    }
+  }
+
+  function startPolling() {
+    if (!timer) timer = setInterval(poll, 1000);
+    poll();
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = {
+      business: $("business").value,
+      city: $("city").value,
+      howMany: Math.min(100, Math.max(1, parseInt($("howMany").value, 10) || 50)),
+    };
+    $("howMany").value = body.howMany;
+    const r = await fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      progress.className = "progress error";
+      message.textContent = data.error || "Could not start the search.";
+      return;
+    }
+    render(data);
+    startPolling();
+  });
+
+  stop.addEventListener("click", () => fetch("/api/stop", { method: "POST" }));
+
+  $("quit").addEventListener("click", async () => {
+    if (!confirm("Quit Lead Finder? Download your sheet first if you need it.")) return;
+    await fetch("/api/quit", { method: "POST" }).catch(() => {});
+    document.body.innerHTML = '<main style="text-align:center"><h1>Lead Finder closed</h1><p>You can close this tab.</p></main>';
+  });
+
+  poll().then(() => {
+    // Resume progress updates if the page was reloaded mid-search.
+    fetch("/api/status").then(r => r.json()).then(s => { if (s.running) startPolling(); });
+  });
+</script>
+</body>
+</html>
