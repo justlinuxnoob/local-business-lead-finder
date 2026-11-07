@@ -64,10 +64,16 @@ func (e *emitter) send(ev event) {
 
 // runWorker scrapes one search and reports progress on stdout. It always
 // exits the process when done (see the comment at the top of this file).
-func runWorker(query, town string, howMany int) {
+func runWorker(query, town string, howMany int, settingsJSON string) {
 	em := &emitter{w: bufio.NewWriter(os.Stdout)}
 
-	if err := scrape(em, query, town, howMany); err != nil {
+	st, err := parseSettings(json.RawMessage(settingsJSON))
+	if err != nil {
+		em.send(event{Type: "error", Message: err.Error()})
+		os.Exit(1)
+	}
+
+	if err := scrape(em, query, town, howMany, st); err != nil {
 		em.send(event{Type: "error", Message: err.Error()})
 		os.Exit(1)
 	}
@@ -75,7 +81,7 @@ func runWorker(query, town string, howMany int) {
 	os.Exit(0)
 }
 
-func scrape(em *emitter, query, town string, howMany int) error {
+func scrape(em *emitter, query, town string, howMany int, st Settings) error {
 	howMany = max(1, min(howMany, maxPlaces))
 
 	if !browserInstalled() {
@@ -105,7 +111,7 @@ func scrape(em *emitter, query, town string, howMany int) error {
 		gmaps.WithExitMonitor(mon),
 	)
 
-	app, err := newScraperApp(&leadWriter{em: em, town: town})
+	app, err := newScraperApp(&leadWriter{em: em, town: town, settings: st})
 	if err != nil {
 		return err
 	}
@@ -155,8 +161,9 @@ func newScraperApp(w scrapemate.ResultWriter) (*scrapemateapp.ScrapemateApp, err
 
 // leadWriter receives every scraped place and reports the good ones.
 type leadWriter struct {
-	em   *emitter
-	town string
+	em       *emitter
+	town     string
+	settings Settings
 }
 
 // Run reads until scrapemate closes the channel. It must not stop early on
@@ -165,7 +172,7 @@ type leadWriter struct {
 func (w *leadWriter) Run(_ context.Context, in <-chan scrapemate.Result) error {
 	for res := range in {
 		e, ok := res.Data.(*gmaps.Entry)
-		if !ok || e == nil || !isLead(e) {
+		if !ok || e == nil || !isLead(e, w.settings) {
 			continue
 		}
 

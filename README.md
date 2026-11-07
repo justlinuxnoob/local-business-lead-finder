@@ -2,10 +2,10 @@
   <img src="assets/icon.png" width="96" alt="Lead Finder icon">
 </p>
 
-<h1 align="center">Lead Finder: find local businesses with no website</h1>
+<h1 align="center">Lead Finder: find local businesses with no website of their own</h1>
 
 <p align="center">
-  <b>Free desktop app that finds local businesses with no website on Google Maps and exports them to a spreadsheet.</b><br>
+  <b>Free desktop app that finds local businesses on Google Maps with no real website (nothing listed, or just a Facebook page, Instagram or booking app) and exports them to a spreadsheet.</b><br>
   Windows, Mac and Linux. No account, no API key, no coding.
 </p>
 
@@ -21,19 +21,37 @@ Type a kind of business (for example **barber**) and a city (for example **Leeds
 
 A CSV sheet with these columns:
 
-| Name | Category | Town | Phone | Rating | Reviews | Google Maps link | Status |
-|---|---|---|---|---|---|---|---|
-| Example Barbers | Barber shop | Leeds | 0113 496 0000 | 4.8 | 57 | https://www.google.com/maps/… | *(empty, for your notes)* |
+| Name | Category | Town | Phone | Rating | Reviews | Has instead of a website | Their page | Google Maps link | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| Example Barbers | Barber shop | Leeds | 0113 496 0000 | 4.8 | 57 | Facebook | https://facebook.com/… | https://www.google.com/maps/… | *(empty, for your notes)* |
+| Kev's Cuts | Barber shop | Leeds | 0113 496 0001 | 4.6 | 31 | None | | https://www.google.com/maps/… | |
 
 Only places that are worth calling are kept:
 
-- **No website** listed on Google Maps
+- **No website of their own.** That means either nothing listed on Google Maps, or only:
+  - a **Facebook** page or **Instagram** profile
+  - other social media (TikTok, X, LinkedIn, YouTube, WhatsApp…)
+  - a link page or old Google site (Linktree, business.site…)
+  - a booking app or directory (Booksy, Fresha, Treatwell, Yelp, Checkatrade…)
+  - a food delivery app (Uber Eats, Deliveroo, Just Eat, Wolt…)
 - Rating **4.0 or higher**
 - **10 or more** reviews
 - **Not permanently closed**
 - **No duplicates**
 
+Businesses with a real website (their own domain, or a Wix/Squarespace/Google Sites site) are always skipped.
+
 The empty **Status** column is for you: write "called", "interested", "sold"… as you work through the list.
+
+### Settings (optional)
+
+You don't need to touch anything: the defaults above work for most people. If you want to change them, click **Settings** under the search button. You can:
+
+- choose **who counts as a lead** (for example, only places with no website at all, or skip delivery apps)
+- change the **minimum rating** and **minimum reviews**, and skip temporarily closed places
+- add **extra columns**: full address, postcode, all categories, opening hours, price range, description, latitude & longitude, plus code
+
+Your settings are remembered in your browser. **Reset to defaults** puts everything back.
 
 ## Download
 
@@ -106,6 +124,9 @@ Windows SmartScreen warns about any new app that isn't signed with a paid certif
 **Why do some searches find few leads?**
 Most busy businesses already have a website. Try other trades (cleaners, mechanics, nail salons, takeaways, plumbers) or smaller towns. You can also check more places (up to 100).
 
+**Why are businesses with a Facebook page in my list?**
+Many small businesses put their Facebook (or Instagram, Booksy, Linktree…) in the "website" box on Google Maps because they don't have a real site. They still need one, so they are good leads. The **Has instead of a website** column shows what they use. To leave them out, open **Settings** and untick them.
+
 **Where is my data stored?**
 Nowhere except your own computer. The app runs only on your machine, at a local address (`http://127.0.0.1:8765`). Nothing is sent to us.
 
@@ -123,7 +144,7 @@ You are responsible for how you use this tool.
 
 ## Credits
 
-Lead Finder is built on **[google-maps-scraper](https://github.com/gosom/google-maps-scraper)** by **[Georgios Komninos (gosom)](https://github.com/gosom)**, MIT licensed. All the Google Maps reading comes from that project (and gosom's [scrapemate](https://github.com/gosom/scrapemate)); Lead Finder adds the simple app, the "no website" filter and the spreadsheet. If you find it useful, please go and star gosom's project. 🙏
+Lead Finder is built on **[google-maps-scraper](https://github.com/gosom/google-maps-scraper)** by **[Georgios Komninos (gosom)](https://github.com/gosom)**, MIT licensed. All the Google Maps reading comes from that project (and gosom's [scrapemate](https://github.com/gosom/scrapemate)); Lead Finder adds the simple app, the "no website of their own" filter and the spreadsheet. If you find it useful, please go and star gosom's project. 🙏
 
 It also uses [playwright-go](https://github.com/playwright-community/playwright-go) (MIT). Their license texts are in [`third_party/`](third_party/).
 

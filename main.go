@@ -1,5 +1,6 @@
-// Lead Finder finds local businesses on Google Maps that have no website
-// and exports them to a spreadsheet (CSV).
+// Lead Finder finds local businesses on Google Maps that have no website of
+// their own (nothing listed, or only a Facebook page, Instagram, a booking
+// app…) and exports them to a spreadsheet (CSV).
 //
 // Scraping is powered by github.com/gosom/google-maps-scraper (MIT).
 package main
@@ -35,6 +36,7 @@ func main() {
 	query := flag.String("query", "", "internal: search text for --worker")
 	town := flag.String("town", "", "internal: town for --worker")
 	count := flag.Int("count", 20, "internal: places to check for --worker")
+	settings := flag.String("settings", "", "internal: search settings (JSON) for --worker")
 	flag.Parse()
 
 	if *showVersion {
@@ -43,7 +45,7 @@ func main() {
 	}
 
 	if *worker {
-		runWorker(*query, *town, *count)
+		runWorker(*query, *town, *count, *settings)
 		return
 	}
 
@@ -96,6 +98,10 @@ func newMux(s *searcher) *http.ServeMux {
 	static, _ := fs.Sub(webFiles, "web")
 	mux.Handle("GET /", http.FileServer(http.FS(static)))
 
+	mux.HandleFunc("GET /api/defaults", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, defaultSettings())
+	})
+
 	mux.HandleFunc("GET /api/status", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, s.Status())
 	})
@@ -107,17 +113,24 @@ func newMux(s *searcher) *http.ServeMux {
 		}
 
 		var req struct {
-			Business string `json:"business"`
-			City     string `json:"city"`
-			HowMany  int    `json:"howMany"`
+			Business string          `json:"business"`
+			City     string          `json:"city"`
+			HowMany  int             `json:"howMany"`
+			Settings json.RawMessage `json:"settings"`
 		}
 
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 			return
 		}
 
-		if err := s.Start(req.Business, req.City, req.HowMany); err != nil {
+		st, err := parseSettings(req.Settings)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+
+		if err := s.Start(req.Business, req.City, req.HowMany, st); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}

@@ -126,6 +126,42 @@
     text-decoration: underline;
   }
   .stop { display: none; }
+  details.settings {
+    margin-top: 16px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+  details.settings summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  details.settings summary::-webkit-details-marker { display: none; }
+  details.settings summary::before { content: "▸"; transition: transform .15s; }
+  details.settings[open] summary::before { transform: rotate(90deg); }
+  details.settings summary .badge {
+    font-size: 12px; font-weight: 600; color: var(--brand);
+    border: 1px solid var(--brand); border-radius: 999px; padding: 0 7px; display: none;
+  }
+  details.settings.changed summary .badge { display: inline; }
+  fieldset { border: 0; padding: 0; margin: 18px 0 0; }
+  legend { font-weight: 700; margin-bottom: 4px; padding: 0; }
+  fieldset .hint { display: block; margin-bottom: 8px; }
+  .check {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-weight: 400; margin: 0; padding: 6px 0; cursor: pointer;
+  }
+  .check input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--brand); }
+  .check small { display: block; color: var(--muted); font-size: 13px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .grid2 input { margin-bottom: 6px; }
+  .settings-error { color: var(--err); font-size: 14px; min-height: 0; margin-top: 8px; }
+  .reset { margin-top: 14px; }
   footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 22px; line-height: 1.6; }
   footer a { color: var(--muted); }
 </style>
@@ -134,7 +170,7 @@
 <main>
   <header>
     <h1>Lead Finder</h1>
-    <p>Find local businesses with no website on Google Maps.</p>
+    <p>Find local businesses on Google Maps with no website of their own.</p>
   </header>
 
   <form class="card" id="form" autocomplete="off">
@@ -155,6 +191,54 @@
 
     <a class="download" id="download" href="/download">Download sheet</a>
 
+    <details class="settings" id="settings">
+      <summary>Settings <span class="hint">(optional)</span> <span class="badge">changed</span></summary>
+
+      <fieldset>
+        <legend>Who counts as a lead?</legend>
+        <span class="hint">Businesses with a real website of their own are always skipped.</span>
+        <label class="check"><input type="checkbox" data-inc="noWebsite"> <span>No website at all</span></label>
+        <label class="check"><input type="checkbox" data-inc="facebook"> <span>Only a Facebook page</span></label>
+        <label class="check"><input type="checkbox" data-inc="instagram"> <span>Only Instagram</span></label>
+        <label class="check"><input type="checkbox" data-inc="otherSocial"> <span>Other social media<small>TikTok, X, LinkedIn, YouTube, WhatsApp…</small></span></label>
+        <label class="check"><input type="checkbox" data-inc="linkPages"> <span>Link pages &amp; old Google sites<small>Linktree, business.site, a link back to Google Maps…</small></span></label>
+        <label class="check"><input type="checkbox" data-inc="booking"> <span>Booking apps &amp; directories<small>Booksy, Fresha, Treatwell, Yelp, Checkatrade…</small></span></label>
+        <label class="check"><input type="checkbox" data-inc="delivery"> <span>Food delivery apps<small>Uber Eats, Deliveroo, Just Eat, Wolt…</small></span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Quality</legend>
+        <div class="grid2">
+          <div>
+            <label for="minRating">Min. rating</label>
+            <input id="minRating" type="number" step="any" inputmode="decimal">
+          </div>
+          <div>
+            <label for="minReviews">Min. reviews</label>
+            <input id="minReviews" type="number" step="any" inputmode="numeric">
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" id="skipTempClosed"> <span>Skip temporarily closed places</span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Columns in the sheet</legend>
+        <span class="hint">Name, category, town, phone, rating, reviews and Google Maps link are always included.</span>
+        <label class="check"><input type="checkbox" data-col="presence"> <span>What they have instead + link<small>e.g. "Facebook" and their page address</small></span></label>
+        <label class="check"><input type="checkbox" data-col="address"> <span>Full address</span></label>
+        <label class="check"><input type="checkbox" data-col="postcode"> <span>Postcode</span></label>
+        <label class="check"><input type="checkbox" data-col="categories"> <span>All categories</span></label>
+        <label class="check"><input type="checkbox" data-col="hours"> <span>Opening hours</span></label>
+        <label class="check"><input type="checkbox" data-col="priceRange"> <span>Price range</span></label>
+        <label class="check"><input type="checkbox" data-col="description"> <span>Description</span></label>
+        <label class="check"><input type="checkbox" data-col="coordinates"> <span>Latitude &amp; longitude</span></label>
+        <label class="check"><input type="checkbox" data-col="plusCode"> <span>Plus code</span></label>
+      </fieldset>
+
+      <div class="settings-error" id="settingsError"></div>
+      <button type="button" class="link reset" id="reset">Reset to defaults</button>
+    </details>
+
     <div class="row">
       <button type="button" class="link stop" id="stop">Stop search</button>
       <span></span>
@@ -163,7 +247,7 @@
   </form>
 
   <footer>
-    Keeps only places with no website, 4.0+ rating, 10+ reviews, not closed.<br>
+    <span id="rules">Keeps places with no website of their own (none, or only Facebook, Instagram, a booking app…), 4.0+ rating, 10+ reviews, not closed.</span><br>
     Free &amp; open source · Powered by
     <a href="https://github.com/gosom/google-maps-scraper" target="_blank" rel="noopener">google-maps-scraper</a>
   </footer>
@@ -174,6 +258,108 @@
   const form = $("form"), find = $("find"), progress = $("progress"),
         message = $("message"), download = $("download"), stop = $("stop");
   let timer = null;
+
+  // ---- Settings (optional; remembered in this browser) ----
+  const STORE_KEY = "leadfinder.settings.v1";
+  const settingsBox = $("settings");
+  const incBoxes = [...document.querySelectorAll("[data-inc]")];
+  const colBoxes = [...document.querySelectorAll("[data-col]")];
+  let defaults = null;
+
+  function readSettings() {
+    if (!defaults) return null;
+    const include = {}, columns = {};
+    incBoxes.forEach(b => include[b.dataset.inc] = b.checked);
+    colBoxes.forEach(b => columns[b.dataset.col] = b.checked);
+    const rating = parseFloat($("minRating").value);
+    const reviews = parseInt($("minReviews").value, 10);
+    return {
+      include,
+      minRating: Number.isFinite(rating) ? Math.min(5, Math.max(0, rating)) : defaults.minRating,
+      minReviews: Number.isFinite(reviews) ? Math.max(0, reviews) : defaults.minReviews,
+      skipTempClosed: $("skipTempClosed").checked,
+      columns,
+    };
+  }
+
+  function writeSettings(st) {
+    incBoxes.forEach(b => b.checked = !!st.include[b.dataset.inc]);
+    colBoxes.forEach(b => b.checked = !!st.columns[b.dataset.col]);
+    $("minRating").value = st.minRating;
+    $("minReviews").value = st.minReviews;
+    $("skipTempClosed").checked = !!st.skipTempClosed;
+  }
+
+  // Merge saved settings over defaults so new options get their default.
+  function merge(base, saved) {
+    if (!saved || typeof saved !== "object") return base;
+    return {
+      include: { ...base.include, ...(saved.include || {}) },
+      minRating: typeof saved.minRating === "number" ? saved.minRating : base.minRating,
+      minReviews: typeof saved.minReviews === "number" ? saved.minReviews : base.minReviews,
+      skipTempClosed: typeof saved.skipTempClosed === "boolean" ? saved.skipTempClosed : base.skipTempClosed,
+      columns: { ...base.columns, ...(saved.columns || {}) },
+    };
+  }
+
+  function describeRules(st) {
+    const inc = st.include;
+    const others = [];
+    if (inc.facebook) others.push("Facebook");
+    if (inc.instagram) others.push("Instagram");
+    if (inc.otherSocial) others.push("other social");
+    if (inc.linkPages) others.push("link pages");
+    if (inc.booking) others.push("booking apps");
+    if (inc.delivery) others.push("delivery apps");
+    let who;
+    if (inc.noWebsite && others.length === 0) who = "Keeps places with no website";
+    else if (!inc.noWebsite) who = `Keeps places that only have ${others.join(", ")}`;
+    else who = `Keeps places with no website of their own (none, or only ${others.slice(0, 3).join(", ")}${others.length > 3 ? "…" : ""})`;
+    const closed = st.skipTempClosed ? "open now" : "not closed";
+    return `${who}, ${st.minRating.toFixed(1)}+ rating, ${st.minReviews}+ reviews, ${closed}.`;
+  }
+
+  function onSettingsChange() {
+    const st = readSettings();
+    const nothing = !Object.values(st.include).some(Boolean);
+    $("settingsError").textContent = nothing ? "Tick at least one kind of business to include." : "";
+    $("rules").textContent = describeRules(st);
+    settingsBox.classList.toggle("changed", JSON.stringify(st) !== JSON.stringify(defaults));
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(st)); } catch (e) {}
+  }
+
+  async function initSettings() {
+    try {
+      defaults = await (await fetch("/api/defaults")).json();
+    } catch (e) {
+      defaults = {
+        include: { noWebsite: true, facebook: true, instagram: true, otherSocial: true, linkPages: true, booking: true, delivery: true },
+        minRating: 4, minReviews: 10, skipTempClosed: false,
+        columns: { presence: true, address: false, postcode: false, categories: false, hours: false,
+                   priceRange: false, description: false, coordinates: false, plusCode: false },
+      };
+    }
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) {}
+    writeSettings(merge(defaults, saved));
+    onSettingsChange();
+  }
+
+  settingsBox.addEventListener("input", onSettingsChange);
+  settingsBox.addEventListener("change", (e) => {
+    // Tidy the numbers once the user leaves the box.
+    if (e.target.id === "minRating" || e.target.id === "minReviews") {
+      const st = readSettings();
+      $("minRating").value = Math.round(st.minRating * 10) / 10;
+      $("minReviews").value = Math.round(st.minReviews);
+    }
+    onSettingsChange();
+  });
+  $("reset").addEventListener("click", () => {
+    writeSettings(defaults);
+    try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+    onSettingsChange();
+  });
 
   function render(s) {
     const running = s.running;
@@ -217,7 +403,14 @@
       business: $("business").value,
       city: $("city").value,
       howMany: Math.min(100, Math.max(1, parseInt($("howMany").value, 10) || 50)),
+      settings: readSettings(),
     };
+    if (body.settings && !Object.values(body.settings.include).some(Boolean)) {
+      settingsBox.open = true;
+      progress.className = "progress error";
+      message.textContent = "Open Settings and tick at least one kind of business to include.";
+      return;
+    }
     $("howMany").value = body.howMany;
     const r = await fetch("/api/search", {
       method: "POST",
@@ -241,6 +434,8 @@
     await fetch("/api/quit", { method: "POST" }).catch(() => {});
     document.body.innerHTML = '<main style="text-align:center"><h1>Lead Finder closed</h1><p>You can close this tab.</p></main>';
   });
+
+  initSettings();
 
   poll().then(() => {
     // Resume progress updates if the page was reloaded mid-search.

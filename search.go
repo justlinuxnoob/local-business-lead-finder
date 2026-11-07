@@ -46,10 +46,11 @@ type searcher struct {
 	seen     map[string]bool
 	fileName string
 	errMsg   string
+	settings Settings
 }
 
 func newSearcher() *searcher {
-	return &searcher{status: Status{Phase: phaseIdle}}
+	return &searcher{status: Status{Phase: phaseIdle}, settings: defaultSettings()}
 }
 
 func (s *searcher) Status() Status {
@@ -67,20 +68,21 @@ func (s *searcher) CSV() ([]byte, string, error) {
 	s.mu.Lock()
 	leads := append([]Lead(nil), s.leads...)
 	name := s.fileName
+	cols := s.settings.Columns
 	s.mu.Unlock()
 
 	if name == "" {
 		name = "leads.csv"
 	}
 
-	data, err := buildCSV(leads)
+	data, err := buildCSV(leads, cols)
 
 	return data, name, err
 }
 
 // Start launches a search in the background. It returns an error if one is
 // already running or the input is invalid.
-func (s *searcher) Start(business, city string, howMany int) error {
+func (s *searcher) Start(business, city string, howMany int, st Settings) error {
 	business = strings.TrimSpace(business)
 	city = strings.TrimSpace(city)
 
@@ -89,6 +91,11 @@ func (s *searcher) Start(business, city string, howMany int) error {
 	}
 
 	howMany = max(1, min(howMany, maxPlaces))
+
+	settingsJSON, err := json.Marshal(st)
+	if err != nil {
+		return err
+	}
 
 	exe, err := os.Executable()
 	if err != nil {
@@ -99,6 +106,7 @@ func (s *searcher) Start(business, city string, howMany int) error {
 		"--query", business+" in "+city,
 		"--town", city,
 		"--count", strconv.Itoa(howMany),
+		"--settings", string(settingsJSON),
 	)
 	cmd.Stderr = os.Stderr
 
@@ -124,6 +132,7 @@ func (s *searcher) Start(business, city string, howMany int) error {
 	s.leads = nil
 	s.seen = map[string]bool{}
 	s.fileName = fileNameFor(business, city)
+	s.settings = st
 	s.status = Status{Phase: phaseStarting, Message: "Starting…", Running: true, FileName: s.fileName}
 
 	go s.follow(cmd, stdout)
@@ -164,7 +173,7 @@ func (s *searcher) follow(cmd *exec.Cmd, stdout io.Reader) {
 	switch {
 	case s.stopped:
 		s.status.Phase = phaseDone
-		s.status.Message = fmt.Sprintf("Stopped. Checked %d places, found %d leads with no website.", s.status.Checked, len(s.leads))
+		s.status.Message = fmt.Sprintf("Stopped. Checked %d places, found %d %s.", s.status.Checked, len(s.leads), s.leadWord())
 	case s.errMsg != "" || waitErr != nil:
 		msg := s.errMsg
 		if msg == "" {
@@ -176,7 +185,7 @@ func (s *searcher) follow(cmd *exec.Cmd, stdout io.Reader) {
 		s.status.Message = "Something went wrong: " + msg
 	default:
 		s.status.Phase = phaseDone
-		s.status.Message = fmt.Sprintf("Done! Checked %d places, found %d leads with no website.", s.status.Checked, len(s.leads))
+		s.status.Message = fmt.Sprintf("Done! Checked %d places, found %d %s.", s.status.Checked, len(s.leads), s.leadWord())
 	}
 }
 
@@ -202,6 +211,21 @@ func (s *searcher) apply(ev event) {
 	case "error":
 		s.errMsg = ev.Message
 	}
+}
+
+// leadWord describes what was found, e.g. "leads with no website of their own".
+// Call with s.mu held.
+func (s *searcher) leadWord() string {
+	word := "leads"
+	if len(s.leads) == 1 {
+		word = "lead"
+	}
+
+	if s.settings.Include.onlyNoWebsite() {
+		return word + " with no website"
+	}
+
+	return word + " with no website of their own"
 }
 
 // Stop ends the running search; results found so far are kept.
